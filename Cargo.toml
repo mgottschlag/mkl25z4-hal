@@ -1,0 +1,13 @@
+[package]
+name = "mkl25z4-hal"
+version = "0.1.0"
+authors = ["Mathias Gottschlag <mgottschlag@gmail.com>"]
+description = "HAL for the MKL25Z family of microcontrollers"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/mgottschlag/mkl25z4-hal"
+
+[dependencies]
+cortex-m = "0.5.0"
+embedded-hal = "0.2.1"
+mkl25z4 = "0.0.1"
