@@ -25,6 +25,8 @@ pub extern crate mkl25z4;
 
 use mkl25z4::{SIM, PORTA, OSC0, MCG};
 
+pub mod time;
+
 pub fn init_clocks() {
     unsafe {
         // Initialize the system clocks to a 48 Mhz core clock speed
