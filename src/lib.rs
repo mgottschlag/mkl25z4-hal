@@ -22,11 +22,11 @@
 
 extern crate cortex_m;
 extern crate embedded_hal as hal;
+pub extern crate embedded_hal_time as time;
 pub extern crate mkl25z4;
 
 use mkl25z4::{SIM, PORTA, OSC0, MCG};
 
-pub mod time;
 
 pub fn init_clocks() {
     unsafe {
