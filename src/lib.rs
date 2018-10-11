@@ -32,6 +32,9 @@ pub mod timer;
 
 pub fn init_clocks() {
     unsafe {
+        // Disable the watchdog timer.
+        (*SIM::ptr()).copc.write(|w| w.bits(0));
+
         // Initialize the system clocks to a 48 Mhz core clock speed
         // Mode progression:  FEI (reset) -> FBE -> PBE -> PEE
         //
