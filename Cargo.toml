@@ -13,4 +13,8 @@ embedded-hal = "0.2.1"
 mkl25z4 = "0.0.1"
 embedded-hal-time = { git = "https://github.com/TheZoq2/embedded-hal-time" }
 nb = "0.1.1"
-void = "*"
+
+[dependencies.void]
+default-features = false
+version = "1.0.2"
+
