@@ -64,10 +64,40 @@ pub struct PushPull;
 /// Open drain output (type state)
 pub struct OpenDrain;
 
-/*/// Alternate function
-pub struct Alternate<MODE> {
-    _mode: PhantomData<MODE>,
-}*/
+pub trait Alternate {
+    const MUX: u8;
+}
+
+/// Alternate function 2
+pub struct Alternate2;
+impl Alternate for Alternate2 {
+    const MUX: u8 = 2;
+}
+/// Alternate function 3
+pub struct Alternate3;
+impl Alternate for Alternate3 {
+    const MUX: u8 = 3;
+}
+/// Alternate function 4
+pub struct Alternate4;
+impl Alternate for Alternate4 {
+    const MUX: u8 = 4;
+}
+/// Alternate function 5
+pub struct Alternate5;
+impl Alternate for Alternate5 {
+    const MUX: u8 = 5;
+}
+/// Alternate function 6
+pub struct Alternate6;
+impl Alternate for Alternate6 {
+    const MUX: u8 = 6;
+}
+/// Alternate function 7
+pub struct Alternate7;
+impl Alternate for Alternate7 {
+    const MUX: u8 = 7;
+}
 
 macro_rules! gpio {
     ($GPIOX:ident, $gpiox:ident, $PORTX:ident, $portx:ident, $PXx:ident, [
@@ -81,7 +111,7 @@ macro_rules! gpio {
             use mkl25z4::{$PORTX, $GPIOX, $gpiox, SIM};
 
             use super::{
-                /*Alternate, */Floating, GpioExt, Input,
+                Alternate, Floating, GpioExt, Input,
                 // OpenDrain,
                 Output,
                 // PullDown, PullUp,
@@ -161,27 +191,26 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> $PXi<MODE> {
-                    /*/// Configures the pin to operate as an alternate function push pull output pin
-                    pub fn into_alternate_push_pull(
+                    /// Configures the pin to operate as an alternate function pin
+                    pub fn into_alternate<ALTERNATE>(
                         self,
                         pddr: &mut PDDR,
-                    ) -> $PXi<Alternate<PushPull>> {
-                        let offset = (4 * $i) % 32;
-                        // Alternate function output push pull
-                        let cnf = 0b10;
-                        // Output mode, max speed 50 MHz
-                        let mode = 0b11;
-                        let bits = (cnf << 2) | mode;
-
-                        // input mode
-                        pcr
-                            .cr()
-                            .modify(|r, w| unsafe {
-                                w.bits((r.bits() & !(0b1111 << offset)) | (bits << offset))
-                            });
+                    ) -> $PXi<ALTERNATE>
+                    where
+                        ALTERNATE: Alternate,
+                    {
+                        unsafe {
+                            // Congigure GPIO as input.
+                            pddr.pddr().modify(|r, w| w.pdd().bits(r.pdd().bits() & !(1 << $i)));
+                            // Configure pin as alternate.
+                            (*$PORTX::ptr()).pcr[$i].write(|w| w.bits(0)
+                                                           .mux().bits(ALTERNATE::MUX) // GPIO
+                                                           .dse().set_bit() // High drive strength
+                                                           );
+                        }
 
                         $PXi { _mode: PhantomData }
-                    }*/
+                    }
 
                     /// Configures the pin to operate as a floating input pin
                     pub fn into_floating_input(
