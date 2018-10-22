@@ -9,7 +9,7 @@ repository = "https://github.com/mgottschlag/mkl25z4-hal"
 
 [dependencies]
 cortex-m = "0.5.0"
-embedded-hal = "0.2.1"
+embedded-hal = { version = "0.2.1", features = ["unproven"] }
 mkl25z4 = "0.0.1"
 embedded-hal-time = { git = "https://github.com/TheZoq2/embedded-hal-time" }
 nb = "0.1.1"
