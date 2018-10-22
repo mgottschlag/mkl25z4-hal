@@ -2,8 +2,7 @@
 use super::hal::timer::{CountDown, Periodic};
 use super::time::Millisecond;
 use super::void::Void;
-use mkl25z4::{SIM, LPTMR0, PIT, Interrupt};
-use cortex_m::peripheral::NVIC;
+use mkl25z4::{SIM, LPTMR0, PIT};
 
 pub enum Event {
     Update,
