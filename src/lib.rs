@@ -30,6 +30,7 @@ use mkl25z4::{SIM, PORTA, OSC0, MCG};
 
 pub mod timer;
 pub mod gpio;
+pub mod spi;
 
 pub fn init_clocks() {
     unsafe {
