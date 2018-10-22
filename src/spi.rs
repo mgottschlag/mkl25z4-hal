@@ -13,12 +13,8 @@ use crate::gpio::{Alternate2, Alternate5};
 /// SPI error
 #[derive(Debug)]
 pub enum Error {
-    /// Overrun occurred
-    Overrun,
     /// Mode fault occurred
     ModeFault,
-    /// CRC error
-    Crc,
     #[doc(hidden)]
     _Extensible,
 }
