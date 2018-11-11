@@ -4,7 +4,7 @@ use crate::hal::timer::{CountDown, Periodic};
 use crate::time::Hertz;
 use crate::void::Void;
 
-use mkl25z4::{SIM, LPTMR0, PIT};
+use mkl25z4::{LPTMR0, PIT, SIM};
 
 pub enum Event {
     Update,
@@ -26,7 +26,7 @@ impl Timer<LPTMR0> {
         T: Into<Hertz>,
     {
         sim.scgc5.modify(|_, w| w.lptmr().set_bit());
-        let mut timer = Timer{
+        let mut timer = Timer {
             tim: lptmr,
             clocks: clocks,
         };
@@ -51,8 +51,12 @@ impl CountDown for Timer<LPTMR0> {
     {
         unsafe {
             self.tim.csr.write(|w| w.bits(0));
-            self.tim.cmr.write(|w| w.bits(1024/* TODO: Compare value */));
-            self.tim.psr.modify(|_, w| w.pcs().bits(0x1).pbyp().set_bit());
+            self.tim
+                .cmr
+                .write(|w| w.bits(1024 /* TODO: Compare value */));
+            self.tim
+                .psr
+                .modify(|_, w| w.pcs().bits(0x1).pbyp().set_bit());
             //self.tim.csr.modify(|_, w| w.tfc().clear_bit()); // Periodic counter
             self.tim.csr.modify(|_, w| w.ten().set_bit());
             // TODO: Interrupts
@@ -86,7 +90,7 @@ impl Timer<PIT> {
         T: Into<Hertz>,
     {
         sim.scgc6.modify(|_, w| w.pit().set_bit());
-        let mut timer = Timer{
+        let mut timer = Timer {
             tim: pit,
             clocks: clocks,
         };

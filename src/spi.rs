@@ -1,7 +1,7 @@
 use crate::hal;
 pub use crate::hal::spi::{Mode, Phase, Polarity};
+use mkl25z4::{SIM, SPI0, SPI1};
 use nb;
-use mkl25z4::{SPI0, SPI1, SIM};
 
 use crate::gpio::gpioa::{PA14, PA15, PA16, PA17};
 use crate::gpio::gpiob::{PB10, PB11, PB16, PB17};
@@ -19,8 +19,7 @@ pub enum Error {
     _Extensible,
 }
 
-pub trait MOSI<SPI> {
-}
+pub trait MOSI<SPI> {}
 
 impl MOSI<SPI0> for PA16<Alternate2> {}
 impl MOSI<SPI0> for PA17<Alternate5> {}
@@ -36,8 +35,7 @@ impl MOSI<SPI1> for PD7<Alternate5> {}
 impl MOSI<SPI1> for PE1<Alternate2> {}
 impl MOSI<SPI1> for PE3<Alternate5> {}
 
-pub trait MISO<SPI> {
-}
+pub trait MISO<SPI> {}
 
 impl MISO<SPI0> for PA16<Alternate5> {}
 impl MISO<SPI0> for PA17<Alternate2> {}
@@ -53,8 +51,7 @@ impl MISO<SPI1> for PD7<Alternate2> {}
 impl MISO<SPI1> for PE1<Alternate5> {}
 impl MISO<SPI1> for PE3<Alternate2> {}
 
-pub trait SCK<SPI> {
-}
+pub trait SCK<SPI> {}
 
 impl SCK<SPI0> for PA15<Alternate2> {}
 impl SCK<SPI0> for PD1<Alternate2> {}
@@ -64,8 +61,7 @@ impl SCK<SPI1> for PB11<Alternate2> {}
 impl SCK<SPI1> for PD5<Alternate2> {}
 impl SCK<SPI1> for PE2<Alternate2> {}
 
-pub trait SS<SPI> {
-}
+pub trait SS<SPI> {}
 
 impl SS<SPI0> for PA14<Alternate2> {}
 impl SS<SPI0> for PC4<Alternate2> {}
