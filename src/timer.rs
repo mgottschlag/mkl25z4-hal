@@ -1,7 +1,9 @@
 
-use super::hal::timer::{CountDown, Periodic};
-use super::time::Millisecond;
-use super::void::Void;
+use crate::clocks::Clocks;
+use crate::hal::timer::{CountDown, Periodic};
+use crate::time::Hertz;
+use crate::void::Void;
+
 use mkl25z4::{SIM, LPTMR0, PIT};
 
 pub enum Event {
@@ -15,16 +17,18 @@ pub trait TimerInterrupt {
 
 pub struct Timer<TIM> {
     tim: TIM,
+    clocks: Clocks,
 }
 
 impl Timer<LPTMR0> {
-    pub fn lptmr0<T>(lptmr: LPTMR0, timeout: T, sim: &mut SIM) -> Self
+    pub fn lptmr0<T>(lptmr: LPTMR0, clocks: Clocks, timeout: T, sim: &mut SIM) -> Self
     where
-        T: Into<Millisecond>,
+        T: Into<Hertz>,
     {
         sim.scgc5.modify(|_, w| w.lptmr().set_bit());
         let mut timer = Timer{
             tim: lptmr,
+            clocks: clocks,
         };
         timer.start(timeout);
         timer
@@ -39,11 +43,11 @@ impl Timer<LPTMR0> {
 }
 
 impl CountDown for Timer<LPTMR0> {
-    type Time = Millisecond;
+    type Time = Hertz;
 
     fn start<T>(&mut self, timeout: T)
     where
-        T: Into<Millisecond>,
+        T: Into<Hertz>,
     {
         unsafe {
             self.tim.csr.write(|w| w.bits(0));
@@ -77,13 +81,14 @@ impl TimerInterrupt for Timer<LPTMR0> {
 impl Periodic for Timer<LPTMR0> {}
 
 impl Timer<PIT> {
-    pub fn pit<T>(pit: PIT, timeout: T, sim: &mut SIM) -> Self
+    pub fn pit<T>(pit: PIT, timeout: T, clocks: Clocks, sim: &mut SIM) -> Self
     where
-        T: Into<Millisecond>,
+        T: Into<Hertz>,
     {
         sim.scgc6.modify(|_, w| w.pit().set_bit());
         let mut timer = Timer{
             tim: pit,
+            clocks: clocks,
         };
         timer.start(timeout);
         timer
@@ -91,15 +96,17 @@ impl Timer<PIT> {
 }
 
 impl CountDown for Timer<PIT> {
-    type Time = Millisecond;
+    type Time = Hertz;
 
     fn start<T>(&mut self, timeout: T)
     where
-        T: Into<Millisecond>,
+        T: Into<Hertz>,
     {
         unsafe {
             self.tim.mcr.write(|w| w.bits(0));
-            self.tim.ldval0.write(|w| w.bits((timeout.into() as Millisecond).0 * 16000));
+            let compare = self.clocks.busclk().0 / timeout.into().0;
+            self.tim.ldval0.write(|w| w.bits(compare));
+            self.tim.tctrl0.write(|w| w.bits(0x0).ten().clear_bit());
             self.tim.tctrl0.write(|w| w.bits(0x0).ten().set_bit());
         }
     }
@@ -125,4 +132,3 @@ impl TimerInterrupt for Timer<PIT> {
     }
 }
 
-impl Periodic for Timer<PIT> {}
