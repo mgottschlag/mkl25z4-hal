@@ -1,3 +1,4 @@
+#![feature(never_type)]
 #![no_std]
 
 extern crate cortex_m;

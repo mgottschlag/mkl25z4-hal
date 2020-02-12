@@ -107,7 +107,7 @@ macro_rules! gpio {
         pub mod $gpiox {
             use core::marker::PhantomData;
 
-            use super::super::hal::digital::{InputPin, OutputPin, StatefulOutputPin, toggleable};
+            use super::super::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin, toggleable};
             use mkl25z4::{$PORTX, $GPIOX, $gpiox, SIM};
 
             use super::{
@@ -160,25 +160,29 @@ macro_rules! gpio {
             }
 
             impl<MODE> OutputPin for $PXx<Output<MODE>> {
-                fn set_high(&mut self) {
+                type Error = !;
+
+                fn set_high(&mut self) -> Result<(), Self::Error> {
                     // NOTE(unsafe) atomic write to a stateless register
                     unsafe { (*$GPIOX::ptr()).psor.write(|w| w.bits(1 << self.i)) }
+                    Ok(())
                 }
 
-                fn set_low(&mut self) {
+                fn set_low(&mut self) -> Result<(), Self::Error> {
                     // NOTE(unsafe) atomic write to a stateless register
                     unsafe { (*$GPIOX::ptr()).pcor.write(|w| w.bits(1 << self.i)) }
+                    Ok(())
                 }
             }
 
             impl <MODE> StatefulOutputPin for $PXx<Output<MODE>> {
-                fn is_set_high(&self) -> bool {
-                    !self.is_set_low()
+                fn is_set_high(&self) -> Result<bool, Self::Error> {
+                    self.is_set_low().map(|x| !x)
                 }
 
-                fn is_set_low(&self) -> bool {
+                fn is_set_low(&self) -> Result<bool, Self::Error> {
                     // NOTE(unsafe) atomic read with no side effects
-                    unsafe { (*$GPIOX::ptr()).pdor.read().bits() & (1 << self.i) == 0 }
+                    Ok(unsafe { (*$GPIOX::ptr()).pdor.read().bits() & (1 << self.i) == 0 })
                 }
             }
 
@@ -263,38 +267,44 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                    fn set_high(&mut self) {
+                    type Error = !;
+
+                    fn set_high(&mut self) -> Result<(), Self::Error> {
                         // NOTE(unsafe) atomic write to a stateless register
                         unsafe { (*$GPIOX::ptr()).psor.write(|w| w.bits(1 << $i)) }
+                        Ok(())
                     }
 
-                    fn set_low(&mut self) {
+                    fn set_low(&mut self) -> Result<(), Self::Error> {
                         // NOTE(unsafe) atomic write to a stateless register
                         unsafe { (*$GPIOX::ptr()).pcor.write(|w| w.bits(1 << $i)) }
+                        Ok(())
                     }
                 }
 
                 impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
-                    fn is_set_high(&self) -> bool {
-                        !self.is_set_low()
+                    fn is_set_high(&self) -> Result<bool, Self::Error> {
+                        self.is_set_low().map(|x| !x)
                     }
 
-                    fn is_set_low(&self) -> bool {
+                    fn is_set_low(&self) -> Result<bool, Self::Error> {
                         // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*$GPIOX::ptr()).pdor.read().bits() & (1 << $i) == 0 }
+                        Ok(unsafe { (*$GPIOX::ptr()).pdor.read().bits() & (1 << $i) == 0 })
                     }
                 }
 
                 impl <MODE> toggleable::Default for $PXi<Output<MODE>> {}
 
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
-                    fn is_high(&self) -> bool {
-                        !self.is_low()
+                    type Error = !;
+
+                    fn is_high(&self) -> Result<bool, Self::Error> {
+                        self.is_low().map(|x| !x)
                     }
 
-                    fn is_low(&self) -> bool {
+                    fn is_low(&self) -> Result<bool, Self::Error> {
                         // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*$GPIOX::ptr()).pdir.read().bits() & (1 << $i) == 0 }
+                        Ok(unsafe { (*$GPIOX::ptr()).pdir.read().bits() & (1 << $i) == 0 })
                     }
                 }
             )+
