@@ -1,4 +1,3 @@
-#![feature(never_type)]
 #![no_std]
 
 extern crate cortex_m;
@@ -13,3 +12,5 @@ pub mod time;
 pub mod timer;
 pub mod watchdog;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum NoError {}
