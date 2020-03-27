@@ -73,13 +73,47 @@ impl Into<KiloHertz> for MegaHertz {
     }
 }
 
+pub trait MonoTimer {
+    /// Returns the frequency at which the monotonic timer is operating.
+    fn frequency(&self) -> Hertz;
+
+    /// Returns an `Instant` corresponding to "now".
+    fn now(&self) -> Instant;
+
+    fn delay_ticks(&self, ticks: u32) {
+        let start = self.now();
+        // Wait *at least* 'ticks' ticks, so wait for one additional count.
+        while start.elapsed(self.now()) <= ticks {}
+    }
+
+    fn delay_ms(&self, ms: u32) {
+        let freq = self.frequency();
+        // TODO: Check for overflow and employ different strategy?
+        //let ticks = ms * freq.0 / 1000;
+        for _ in 0..ms {
+            self.delay_ticks(freq.0 / 1000);
+        }
+    }
+
+    fn delay_us(&self, us: u32) {
+        let freq = self.frequency();
+        self.delay_ms(us / 1000);
+        let mut us = us % 1000;
+        while us > 100 {
+            self.delay_ticks(freq.0 / 10000);
+            us -= 100;
+        }
+        self.delay_ticks(freq.0 * us / 1000000);
+    }
+}
+
 /// A monotonic nondecreasing timer
-pub struct MonoTimer {
+pub struct NonCopyableMonoTimer {
     pit: PIT,
     frequency: Hertz,
 }
 
-impl MonoTimer {
+impl NonCopyableMonoTimer {
     /// Creates a new `Monotonic` timer
     pub fn new(pit: PIT, clocks: Clocks, sim: &mut SIM) -> Self {
         sim.scgc6.modify(|_, w| w.pit().set_bit());
@@ -90,43 +124,61 @@ impl MonoTimer {
             pit.tctrl0.write(|w| w.bits(0x0).ten().set_bit());
         }
 
-        MonoTimer {
+        NonCopyableMonoTimer {
             pit: pit,
             frequency: clocks.busclk(),
         }
     }
 
+    pub fn free(self, sim: &mut SIM) -> PIT {
+        self.pit.tctrl0.modify(|_, w| w.ten().clear_bit());
+        sim.scgc6.modify(|_, w| w.pit().clear_bit());
+        self.pit
+    }
+}
+
+impl MonoTimer for NonCopyableMonoTimer {
     /// Returns the frequency at which the monotonic timer is operating at
-    pub fn frequency(&self) -> Hertz {
+    fn frequency(&self) -> Hertz {
         self.frequency
     }
 
     /// Returns an `Instant` corresponding to "now"
-    pub fn now(&self) -> Instant {
+    fn now(&self) -> Instant {
         Instant {
             // The PIT counts from 0xffffffff down to 0.
             now: 0xffffffff_u32.wrapping_sub(self.pit.cval0.read().bits()),
         }
     }
+}
 
-    pub fn delay_ticks(&self, ticks: u32) {
-        let start = self.now();
-        // Wait *at least* 'ticks' ticks, so wait for one additional count.
-        while start.elapsed(self.now()) <= ticks {}
-    }
+/// A monotonic nondecreasing timer - like MonoTimer, but the resources cannot
+/// be released, so the type can implement Copy.
+#[derive(Clone, Copy)]
+pub struct CopyableMonoTimer {
+    frequency: Hertz,
+}
 
-    pub fn delay_ms(&self, ms: u32) {
-        // TODO: Check for overflow and employ different strategy?
-        //let ticks = ms * self.frequency.0 / 1000;
-        for _ in 0..ms {
-            self.delay_ticks(self.frequency.0 / 1000);
+impl CopyableMonoTimer {
+    pub fn new(timer: NonCopyableMonoTimer) -> Self {
+        CopyableMonoTimer {
+            frequency: timer.frequency,
         }
     }
+}
 
-    pub fn deactivate(self, sim: &mut SIM) -> PIT {
-        self.pit.tctrl0.modify(|_, w| w.ten().clear_bit());
-        sim.scgc6.modify(|_, w| w.pit().clear_bit());
-        self.pit
+impl MonoTimer for CopyableMonoTimer {
+    /// Returns the frequency at which the monotonic timer is operating at
+    fn frequency(&self) -> Hertz {
+        self.frequency
+    }
+
+    /// Returns an `Instant` corresponding to "now"
+    fn now(&self) -> Instant {
+        Instant {
+            // The PIT counts from 0xffffffff down to 0.
+            now: 0xffffffff_u32.wrapping_sub(unsafe { (*PIT::ptr()).cval0.read().bits() }),
+        }
     }
 }
 

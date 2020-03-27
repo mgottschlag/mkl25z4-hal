@@ -1,4 +1,3 @@
-
 use crate::clocks::Clocks;
 use crate::hal::timer::{CountDown, Periodic};
 use crate::time::Hertz;
@@ -19,6 +18,10 @@ pub struct Timer<TIM> {
     tim: TIM,
     clocks: Clocks,
 }
+
+/*pub struct CopyableTimer<TIM> {
+    frequency: Hertz,
+}*/
 
 impl Timer<LPTMR0> {
     pub fn lptmr0<T>(lptmr: LPTMR0, clocks: Clocks, timeout: T, sim: &mut SIM) -> Self
@@ -45,10 +48,11 @@ impl Timer<LPTMR0> {
 impl CountDown for Timer<LPTMR0> {
     type Time = Hertz;
 
-    fn start<T>(&mut self, timeout: T)
+    fn start<T>(&mut self, _timeout: T)
     where
         T: Into<Hertz>,
     {
+        // TODO: Proper timeout.
         unsafe {
             self.tim.csr.write(|w| w.bits(0));
             self.tim
@@ -135,4 +139,3 @@ impl TimerInterrupt for Timer<PIT> {
         self.tim.tctrl0.modify(|_, w| w.tie().clear_bit());
     }
 }
-
