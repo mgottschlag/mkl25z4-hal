@@ -112,9 +112,9 @@ impl<MOSIPin, MISOPin, SCKPin> Spi<SPI1, MOSIPin, MISOPin, SCKPin> {
     ) -> Self
     where
         //F: Into<Hertz>,
-        MOSIPin: MOSI<SPI0>,
-        MISOPin: MISO<SPI0>,
-        SCKPin: SCK<SPI0>,
+        MOSIPin: MOSI<SPI1>,
+        MISOPin: MISO<SPI1>,
+        SCKPin: SCK<SPI1>,
     {
         Spi::_spi1(spi, mosi, miso, sck, mode/*, freq.into(), clocks*/, sim)
     }
