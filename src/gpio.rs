@@ -114,7 +114,7 @@ macro_rules! gpio {
                 Alternate, Floating, GpioExt, Input,
                 // OpenDrain,
                 Output,
-                // PullDown, PullUp,
+                PullDown, PullUp,
                 PushPull,
             };
 
@@ -204,7 +204,7 @@ macro_rules! gpio {
                         ALTERNATE: Alternate,
                     {
                         unsafe {
-                            // Congigure GPIO as input.
+                            // Configure GPIO as input.
                             pddr.pddr().modify(|r, w| w.pdd().bits(r.pdd().bits() & !(1 << $i)));
                             // Configure pin as alternate.
                             (*$PORTX::ptr()).pcr[$i].write(|w| w.bits(0)
@@ -222,12 +222,52 @@ macro_rules! gpio {
                         pddr: &mut PDDR,
                     ) -> $PXi<Input<Floating>> {
                         unsafe {
-                            // Congigure GPIO as input.
+                            // Configure GPIO as input.
                             pddr.pddr().modify(|r, w| w.pdd().bits(r.pdd().bits() & !(1 << $i)));
                             // Configure pin (no pullup/pulldown configured).
                             (*$PORTX::ptr()).pcr[$i].write(|w| w.bits(0)
                                                            .mux()._001() // GPIO
                                                            .dse().set_bit() // High drive strength
+                                                           );
+                        }
+
+                        $PXi { _mode: PhantomData }
+                    }
+
+                    /// Configures the pin to operate as a pull-up input pin
+                    pub fn into_pull_up_input(
+                        self,
+                        pddr: &mut PDDR,
+                    ) -> $PXi<Input<PullUp>> {
+                        unsafe {
+                            // Configure GPIO as input.
+                            pddr.pddr().modify(|r, w| w.pdd().bits(r.pdd().bits() & !(1 << $i)));
+                            // Configure pin (enable pullup).
+                            (*$PORTX::ptr()).pcr[$i].write(|w| w.bits(0)
+                                                           .mux()._001() // GPIO
+                                                           .dse().set_bit() // High drive strength
+                                                           .pe().set_bit() // Pull enable
+                                                           .ps().set_bit() // Pullup
+                                                           );
+                        }
+
+                        $PXi { _mode: PhantomData }
+                    }
+
+                    /// Configures the pin to operate as a pull-down input pin
+                    pub fn into_pull_down_input(
+                        self,
+                        pddr: &mut PDDR,
+                    ) -> $PXi<Input<PullDown>> {
+                        unsafe {
+                            // Configure GPIO as input.
+                            pddr.pddr().modify(|r, w| w.pdd().bits(r.pdd().bits() & !(1 << $i)));
+                            // Configure pin (enable pulldown).
+                            (*$PORTX::ptr()).pcr[$i].write(|w| w.bits(0)
+                                                           .mux()._001() // GPIO
+                                                           .dse().set_bit() // High drive strength
+                                                           .pe().set_bit() // Pull enable
+                                                           .ps().clear_bit() // Pulldown
                                                            );
                         }
 
@@ -240,7 +280,7 @@ macro_rules! gpio {
                         pddr: &mut PDDR,
                     ) -> $PXi<Output<PushPull>> {
                         unsafe {
-                            // Congigure GPIO as output.
+                            // Configure GPIO as output.
                             pddr.pddr().modify(|r, w| w.pdd().bits(r.pdd().bits() | (1 << $i)));
                             // Configure pin.
                             (*$PORTX::ptr()).pcr[$i].write(|w| w.bits(0)
