@@ -3,12 +3,14 @@ pub use crate::hal::spi::{Mode, Phase, Polarity};
 use mkl25z4::{SIM, SPI0, SPI1};
 use nb;
 
+use crate::clocks::Clocks;
 use crate::gpio::gpioa::{PA14, PA15, PA16, PA17};
 use crate::gpio::gpiob::{PB10, PB11, PB16, PB17};
 use crate::gpio::gpioc::{PC4, PC5, PC6, PC7};
 use crate::gpio::gpiod::{PD0, PD1, PD2, PD3, PD4, PD5, PD6, PD7};
 use crate::gpio::gpioe::{PE1, PE2, PE3, PE4};
 use crate::gpio::{Alternate2, Alternate5};
+use crate::time::Hertz;
 
 /// SPI error
 #[derive(Debug)]
@@ -79,44 +81,44 @@ pub struct Spi<SPI, MOSIPin, MISOPin, SCKPin> {
 }
 
 impl<MOSIPin, MISOPin, SCKPin> Spi<SPI0, MOSIPin, MISOPin, SCKPin> {
-    pub fn spi0/*<F>*/(
+    pub fn spi0<F>(
         spi: SPI0,
         mosi: MOSIPin,
         miso: MISOPin,
         sck: SCKPin,
         mode: Mode,
-        /*freq: F,
-        clocks: Clocks,*/
+        freq: F,
+        clocks: Clocks,
         sim: &mut SIM,
     ) -> Self
     where
-        //F: Into<Hertz>, // TODO: Frequency
+        F: Into<Hertz>,
         MOSIPin: MOSI<SPI0>,
         MISOPin: MISO<SPI0>,
         SCKPin: SCK<SPI0>,
     {
-        Spi::_spi0(spi, mosi, miso, sck, mode/*, freq.into(), clocks*/, sim)
+        Spi::_spi0(spi, mosi, miso, sck, mode, freq.into(), clocks, sim)
     }
 }
 
 impl<MOSIPin, MISOPin, SCKPin> Spi<SPI1, MOSIPin, MISOPin, SCKPin> {
-    pub fn spi1/*<F>*/(
+    pub fn spi1<F>(
         spi: SPI1,
         mosi: MOSIPin,
         miso: MISOPin,
         sck: SCKPin,
         mode: Mode,
-        /*freq: F,
-        clocks: Clocks,*/
+        freq: F,
+        clocks: Clocks,
         sim: &mut SIM,
     ) -> Self
     where
-        //F: Into<Hertz>,
+        F: Into<Hertz>,
         MOSIPin: MOSI<SPI1>,
         MISOPin: MISO<SPI1>,
         SCKPin: SCK<SPI1>,
     {
-        Spi::_spi1(spi, mosi, miso, sck, mode/*, freq.into(), clocks*/, sim)
+        Spi::_spi1(spi, mosi, miso, sck, mode, freq.into(), clocks, sim)
     }
 }
 
@@ -130,26 +132,15 @@ macro_rules! hal {
                     miso: MISOPin,
                     sck: SCKPin,
                     mode: Mode,
-                    /*freq: Hertz,
+                    freq: Hertz,
                     clocks: Clocks,
-                    apb: &mut $APB,*/
+                    /*apb: &mut $APB,*/
                     sim: &mut SIM,
                 ) -> Self {
                     // Enable $SPIX
                     sim.scgc4.modify(|_, w| w.$spiX().set_bit());
 
-                    /*let br = match clocks.pclk2().0 / freq.0 {
-                        0 => unreachable!(),
-                        1...2 => 0b000,
-                        3...5 => 0b001,
-                        6...11 => 0b010,
-                        12...23 => 0b011,
-                        24...47 => 0b100,
-                        48...95 => 0b101,
-                        96...191 => 0b110,
-                        _ => 0b111,
-                    };*/
-                    // TODO: Frequency
+                    let (spr, sppr) = get_baud_rate_divisors(clocks.busclk(), freq);
 
                     spi.c1.write(|w| {
                         w.spie().clear_bit() // Disable interrupts
@@ -169,10 +160,12 @@ macro_rules! hal {
                             .spiswai().clear_bit()
                             .spc0().clear_bit()
                     });
-                    spi.br.write(|w| {
-                        w.sppr()._000() // Prescale divisor 1
-                            .spr()._0001() // Baud rate divisor 4
-                    });
+                    unsafe {
+                        spi.br.write(|w| {
+                            w.sppr().bits(sppr)
+                                .spr().bits(spr)
+                        });
+                    }
 
                     Spi { spi, mosi, miso, sck }
                 }
@@ -224,4 +217,35 @@ macro_rules! hal {
 hal! {
     SPI0: (_spi0, spi0),
     SPI1: (_spi1, spi1),
+}
+
+fn get_baud_rate_divisors(busclk: Hertz, freq: Hertz) -> (u8, u8) {
+    let divisor = busclk.0 / freq.0;
+    // sppr scales by 8 at most, and spr is exponential, so:
+    // divisor<16 => spr=0
+    // divisor<32 => spr=1
+    // etc.
+    let spr = u32::min(32 - (divisor as u32 >> 4).leading_zeros(), 8);
+    // To err on the save side, the code always chooses the next lower rate if
+    // there is no perfect match. Therefore, we round up in the following division.
+    let remaining_divisor = (divisor + ((1 << (1 + spr)) - 1)) >> (1 + spr);
+    let sppr = u32::min(remaining_divisor - 1, 7);
+    (spr as u8, sppr as u8)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::time::U32Ext;
+
+    #[test]
+    fn test_baud_rate_divisors() {
+        // Exact divisors.
+        assert_eq!(get_baud_rate_divisors(16.hz(), 2.hz()), (0, 3));
+        assert_eq!(get_baud_rate_divisors(32.hz(), 2.hz()), (1, 3));
+        assert_eq!(get_baud_rate_divisors(1280.hz(), 4.hz()), (5, 4));
+        // Correct rounding.
+        assert_eq!(get_baud_rate_divisors(14.hz(), 2.hz()), (0, 3));
+        assert_eq!(get_baud_rate_divisors(50.hz(), 2.hz()), (1, 6));
+    }
 }
