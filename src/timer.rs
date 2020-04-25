@@ -115,6 +115,7 @@ impl CountDown for Timer<PIT> {
             let compare = self.clocks.busclk().0 / timeout.into().0;
             self.tim.ldval0.write(|w| w.bits(compare));
             self.tim.tctrl0.write(|w| w.bits(0x0).ten().clear_bit());
+            self.tim.tflg0.write(|w| w.bits(1));
             self.tim.tctrl0.write(|w| w.bits(0x0).ten().set_bit());
         }
     }
