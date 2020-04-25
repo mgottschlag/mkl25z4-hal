@@ -68,6 +68,11 @@ pub trait Alternate {
     const MUX: u8;
 }
 
+/// Analog/disabled (alternate function 0).
+pub struct Analog;
+impl Alternate for Analog {
+    const MUX: u8 = 0;
+}
 /// Alternate function 2
 pub struct Alternate2;
 impl Alternate for Alternate2 {

@@ -1,4 +1,6 @@
 #![no_std]
+#![feature(exclusive_range_pattern)]
+#![feature(clamp)]
 
 extern crate cortex_m;
 extern crate embedded_hal as hal;
