@@ -5,6 +5,7 @@
 use mkl25z4::{PIT, SIM};
 
 use crate::clocks::Clocks;
+use crate::hal::blocking::delay::{DelayMs, DelayUs};
 
 /// Bits per second
 #[derive(Clone, Copy)]
@@ -85,8 +86,11 @@ pub trait MonoTimer {
         // Wait *at least* 'ticks' ticks, so wait for one additional count.
         while start.elapsed(self.now()) <= ticks {}
     }
+}
 
-    fn delay_ms(&self, ms: u32) {
+// TODO: Deduplicate the code here and for CopyableMonoTimer.
+impl DelayMs<u8> for NonCopyableMonoTimer {
+    fn delay_ms(&mut self, ms: u8) {
         let freq = self.frequency();
         // TODO: Check for overflow and employ different strategy?
         //let ticks = ms * freq.0 / 1000;
@@ -94,8 +98,35 @@ pub trait MonoTimer {
             self.delay_ticks(freq.0 / 1000);
         }
     }
+}
 
-    fn delay_us(&self, us: u32) {
+impl DelayUs<u8> for NonCopyableMonoTimer {
+    fn delay_us(&mut self, us: u8) {
+        // TODO: Most of the code is not needed.
+        let freq = self.frequency();
+        self.delay_ms(us as u32 / 1000);
+        let mut us = us as u32 % 1000;
+        while us > 100 {
+            self.delay_ticks(freq.0 / 10000);
+            us -= 100;
+        }
+        self.delay_ticks(freq.0 * us as u32 / 1000000);
+    }
+}
+
+impl DelayMs<u32> for NonCopyableMonoTimer {
+    fn delay_ms(&mut self, ms: u32) {
+        let freq = self.frequency();
+        // TODO: Check for overflow and employ different strategy?
+        //let ticks = ms * freq.0 / 1000;
+        for _ in 0..ms {
+            self.delay_ticks(freq.0 / 1000);
+        }
+    }
+}
+
+impl DelayUs<u32> for NonCopyableMonoTimer {
+    fn delay_us(&mut self, us: u32) {
         let freq = self.frequency();
         self.delay_ms(us / 1000);
         let mut us = us % 1000;
@@ -179,6 +210,55 @@ impl MonoTimer for CopyableMonoTimer {
             // The PIT counts from 0xffffffff down to 0.
             now: 0xffffffff_u32.wrapping_sub(unsafe { (*PIT::ptr()).cval0.read().bits() }),
         }
+    }
+}
+
+impl DelayMs<u8> for CopyableMonoTimer {
+    fn delay_ms(&mut self, ms: u8) {
+        let freq = self.frequency();
+        // TODO: Check for overflow and employ different strategy?
+        //let ticks = ms * freq.0 / 1000;
+        for _ in 0..ms {
+            self.delay_ticks(freq.0 / 1000);
+        }
+    }
+}
+
+impl DelayUs<u8> for CopyableMonoTimer {
+    fn delay_us(&mut self, us: u8) {
+        // TODO: Most of the code is not needed.
+        let freq = self.frequency();
+        self.delay_ms(us as u32 / 1000);
+        let mut us = us as u32 % 1000;
+        while us > 100 {
+            self.delay_ticks(freq.0 / 10000);
+            us -= 100;
+        }
+        self.delay_ticks(freq.0 * us as u32 / 1000000);
+    }
+}
+
+impl DelayMs<u32> for CopyableMonoTimer {
+    fn delay_ms(&mut self, ms: u32) {
+        let freq = self.frequency();
+        // TODO: Check for overflow and employ different strategy?
+        //let ticks = ms * freq.0 / 1000;
+        for _ in 0..ms {
+            self.delay_ticks(freq.0 / 1000);
+        }
+    }
+}
+
+impl DelayUs<u32> for CopyableMonoTimer {
+    fn delay_us(&mut self, us: u32) {
+        let freq = self.frequency();
+        self.delay_ms(us / 1000);
+        let mut us = us % 1000;
+        while us > 100 {
+            self.delay_ticks(freq.0 / 10000);
+            us -= 100;
+        }
+        self.delay_ticks(freq.0 * us / 1000000);
     }
 }
 
