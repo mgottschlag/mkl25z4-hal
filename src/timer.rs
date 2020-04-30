@@ -24,7 +24,7 @@ pub struct Timer<TIM> {
 }*/
 
 impl Timer<LPTMR0> {
-    pub fn lptmr0<T>(lptmr: LPTMR0, clocks: Clocks, timeout: T, sim: &mut SIM) -> Self
+    pub fn lptmr0<T>(lptmr: LPTMR0, timeout: T, clocks: Clocks, sim: &mut SIM) -> Self
     where
         T: Into<Hertz>,
     {
