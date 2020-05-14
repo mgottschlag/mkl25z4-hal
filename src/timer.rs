@@ -1,6 +1,6 @@
 use crate::clocks::Clocks;
 use crate::hal::timer::{CountDown, Periodic};
-use crate::time::Hertz;
+use crate::time::{Hertz, MilliSeconds};
 use crate::void::Void;
 
 use mkl25z4::{LPTMR0, PIT, SIM};
@@ -19,14 +19,10 @@ pub struct Timer<TIM> {
     clocks: Clocks,
 }
 
-/*pub struct CopyableTimer<TIM> {
-    frequency: Hertz,
-}*/
-
 impl Timer<LPTMR0> {
     pub fn lptmr0<T>(lptmr: LPTMR0, timeout: T, clocks: Clocks, sim: &mut SIM) -> Self
     where
-        T: Into<Hertz>,
+        T: Into<MilliSeconds>,
     {
         sim.scgc5.modify(|_, w| w.lptmr().set_bit());
         let mut timer = Timer {
@@ -46,25 +42,40 @@ impl Timer<LPTMR0> {
 }
 
 impl CountDown for Timer<LPTMR0> {
-    type Time = Hertz;
+    type Time = MilliSeconds;
 
-    fn start<T>(&mut self, _timeout: T)
+    fn start<T>(&mut self, timeout: T)
     where
-        T: Into<Hertz>,
+        T: Into<MilliSeconds>,
     {
-        // TODO: Proper timeout.
+        let timeout = timeout.into();
+
+        let ps_ratio = timeout.0 >> 16;
+        let prescale = (ps_ratio + 1).next_power_of_two();
+        let compare = if ps_ratio == 0 {
+            timeout.0
+        } else {
+            timeout.0 / prescale
+        };
+
         unsafe {
-            self.tim.csr.write(|w| w.bits(0));
-            self.tim
-                .cmr
-                .write(|w| w.bits(1024 /* TODO: Compare value */));
-            self.tim
-                .psr
-                .modify(|_, w| w.pcs().bits(0x1).pbyp().set_bit());
-            //self.tim.csr.modify(|_, w| w.tfc().clear_bit()); // Periodic counter
-            self.tim.csr.modify(|_, w| w.ten().set_bit());
-            // TODO: Interrupts
+            self.tim.csr.write(|w| w.bits(0)); // Disable the timer.
         }
+        self.tim
+            .cmr
+            .write(|w| unsafe { w.compare().bits(compare as u16) });
+        self.tim.psr.write(|w| {
+            let w = w.pcs()._01(); // Select the 1kHz LPO as input.
+            let w = if ps_ratio == 0 {
+                w.pbyp().set_bit() // Bypass the prescaler.
+            } else {
+                let prescale_bits = prescale.trailing_zeros() - 1;
+                w.pbyp().clear_bit().prescale().bits(prescale_bits as u8)
+            };
+            w
+        });
+        //self.tim.csr.modify(|_, w| w.tfc().clear_bit()); // Periodic counter
+        self.tim.csr.modify(|_, w| w.ten().set_bit());
     }
 
     fn wait(&mut self) -> nb::Result<(), Void> {
@@ -79,11 +90,11 @@ impl CountDown for Timer<LPTMR0> {
 impl TimerInterrupt for Timer<LPTMR0> {
     fn enable_interrupt(&self) {
         self.tim.csr.modify(|_, w| w.tie().set_bit());
-        // TODO: NVIC
     }
     fn disable_interrupt(&self) {
         self.tim.csr.modify(|_, w| w.tie().clear_bit());
     }
+    // TODO: Function to acknowledge the interrupt.
 }
 
 impl Periodic for Timer<LPTMR0> {}

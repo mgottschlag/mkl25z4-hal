@@ -23,6 +23,18 @@ pub struct KiloHertz(pub u32);
 #[derive(Clone, Copy)]
 pub struct MegaHertz(pub u32);
 
+/// Seconds
+#[derive(Clone, Copy)]
+pub struct Seconds(pub u32);
+
+/// Milliseconds
+#[derive(Clone, Copy)]
+pub struct MilliSeconds(pub u32);
+
+/// Microseconds
+#[derive(Clone, Copy)]
+pub struct MicroSeconds(pub u32);
+
 /// Extension trait that adds convenience methods to the `u32` type
 pub trait U32Ext {
     /// Wrap in `Bps`
@@ -36,6 +48,15 @@ pub trait U32Ext {
 
     /// Wrap in `MegaHertz`
     fn mhz(self) -> MegaHertz;
+
+    /// Wrap in `Seconds`
+    fn s(self) -> Seconds;
+
+    /// Wrap in `MilliSeconds`
+    fn ms(self) -> MilliSeconds;
+
+    /// Wrap in `MicroSeconds`
+    fn us(self) -> MicroSeconds;
 }
 
 impl U32Ext for u32 {
@@ -54,6 +75,18 @@ impl U32Ext for u32 {
     fn mhz(self) -> MegaHertz {
         MegaHertz(self)
     }
+
+    fn s(self) -> Seconds {
+        Seconds(self)
+    }
+
+    fn ms(self) -> MilliSeconds {
+        MilliSeconds(self)
+    }
+
+    fn us(self) -> MicroSeconds {
+        MicroSeconds(self)
+    }
 }
 
 impl Into<Hertz> for KiloHertz {
@@ -71,6 +104,24 @@ impl Into<Hertz> for MegaHertz {
 impl Into<KiloHertz> for MegaHertz {
     fn into(self) -> KiloHertz {
         KiloHertz(self.0 * 1_000)
+    }
+}
+
+impl Into<MilliSeconds> for Seconds {
+    fn into(self) -> MilliSeconds {
+        MilliSeconds(self.0 * 1_000)
+    }
+}
+
+impl Into<MicroSeconds> for Seconds {
+    fn into(self) -> MicroSeconds {
+        MicroSeconds(self.0 * 1_000_000)
+    }
+}
+
+impl Into<MicroSeconds> for MilliSeconds {
+    fn into(self) -> MicroSeconds {
+        MicroSeconds(self.0 * 1_000)
     }
 }
 
