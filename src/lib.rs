@@ -9,6 +9,7 @@ extern crate void;
 
 pub mod clocks;
 pub mod gpio;
+pub mod pm;
 pub mod spi;
 pub mod time;
 pub mod timer;
